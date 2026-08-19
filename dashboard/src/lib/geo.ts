@@ -108,6 +108,16 @@ export function clusterHazards(hazards: HazardWindow[]): HazardCluster[] {
   return clusters;
 }
 
+/** 히트맵 강도: 해당 mode의 danger 임계값 대비 RMS 비율 (0.3~1로 클램프) */
+export function heatIntensity(
+  h: Pick<HazardWindow, "rms" | "mode">,
+  configs: Map<string, DetectionConfig>
+): number {
+  const danger = configs.get(h.mode)?.danger_rms;
+  if (!danger || danger <= 0) return 0.6;
+  return Math.min(1, Math.max(0.3, h.rms / danger));
+}
+
 export function formatDuration(startIso: string, endIso: string): string {
   const secs = Math.max(
     0,

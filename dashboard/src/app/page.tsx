@@ -1,38 +1,56 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
+import HeatLegend from "../components/HeatLegend";
 import LocationSearch from "../components/LocationSearch";
 import SeverityLegend from "../components/SeverityLegend";
 import type { MapFocus } from "../components/SessionMap";
-import { clusterHazards, type HazardCluster } from "../lib/geo";
+import type { HeatPoint } from "../components/HeatLayer";
+import { clusterHazards, heatIntensity, type HazardCluster } from "../lib/geo";
 import { supabase, supabaseConfigured } from "../lib/supabase";
-import type { HazardWindow } from "../lib/types";
+import type { DetectionConfig, HazardWindow } from "../lib/types";
 
 const SessionMap = dynamic(() => import("../components/SessionMap"), {
   ssr: false,
   loading: () => <div className="map-placeholder">지도 로딩 중…</div>,
 });
 
-async function loadHazards(): Promise<HazardWindow[]> {
-  const { data, error } = await supabase.from("hazard_windows").select("*");
-  if (error) throw error;
-  return (data ?? []) as HazardWindow[];
+interface HomeData {
+  hazards: HazardWindow[];
+  configs: Map<string, DetectionConfig>;
+}
+
+async function loadHome(): Promise<HomeData> {
+  const [hazardsRes, configRes] = await Promise.all([
+    supabase.from("hazard_windows").select("*"),
+    supabase.from("detection_config").select("*"),
+  ]);
+  if (hazardsRes.error) throw hazardsRes.error;
+
+  const configs = new Map<string, DetectionConfig>();
+  for (const c of (configRes.data ?? []) as DetectionConfig[]) {
+    configs.set(c.mode, c);
+  }
+  return { hazards: (hazardsRes.data ?? []) as HazardWindow[], configs };
 }
 
 export default function HomePage() {
-  const [hazards, setHazards] = useState<HazardWindow[] | null>(null);
+  const [data, setData] = useState<HomeData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [focus, setFocus] = useState<MapFocus | null>(null);
   const [viewer, setViewer] = useState<{ lat: number; lng: number } | null>(
     null
   );
+  const [hazardDisplay, setHazardDisplay] = useState<"circles" | "heatmap">(
+    "circles"
+  );
   const searchedRef = useRef(false);
 
   useEffect(() => {
     if (!supabaseConfigured) return;
-    loadHazards().then(setHazards).catch((e) => setError(String(e)));
+    loadHome().then(setData).catch((e) => setError(String(e)));
   }, []);
 
   // 기본 지도 중심 = 뷰어의 현재 위치 (권한 거부·실패 시 위험 지점 범위로 폴백)
@@ -57,6 +75,18 @@ export default function HomePage() {
     setFocus({ lat, lng, zoom: 16, label });
   }
 
+  // 히트맵은 클러스터가 아닌 원본 윈도우 단위로 밀도를 표현한다
+  const heatPoints: HeatPoint[] = useMemo(() => {
+    if (!data) return [];
+    return data.hazards
+      .filter((h) => h.lat != null && h.lng != null)
+      .map((h) => ({
+        lat: h.lat!,
+        lng: h.lng!,
+        intensity: heatIntensity(h, data.configs),
+      }));
+  }, [data]);
+
   if (!supabaseConfigured) {
     return (
       <main className="page">
@@ -71,7 +101,7 @@ export default function HomePage() {
     );
   }
 
-  const clusters: HazardCluster[] = hazards ? clusterHazards(hazards) : [];
+  const clusters: HazardCluster[] = data ? clusterHazards(data.hazards) : [];
 
   return (
     <main className="page">
@@ -89,13 +119,33 @@ export default function HomePage() {
       <section className="card">
         <div className="card-header">
           <h2>전체 위험 지도</h2>
-          <SeverityLegend />
+          <div className="map-controls">
+            {hazardDisplay === "circles" ? <SeverityLegend /> : <HeatLegend />}
+            <div className="map-toggle" role="group" aria-label="표시 방식">
+              <button
+                type="button"
+                className={hazardDisplay === "circles" ? "active" : ""}
+                onClick={() => setHazardDisplay("circles")}
+              >
+                원
+              </button>
+              <button
+                type="button"
+                className={hazardDisplay === "heatmap" ? "active" : ""}
+                onClick={() => setHazardDisplay("heatmap")}
+              >
+                히트맵
+              </button>
+            </div>
+          </div>
         </div>
         <SessionMap
           hazards={clusters}
           height={520}
           focus={focus}
           viewer={viewer}
+          hazardDisplay={hazardDisplay}
+          heatPoints={heatPoints}
         />
       </section>
     </main>

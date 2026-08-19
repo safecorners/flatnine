@@ -402,6 +402,52 @@ input {
   display: inline-block;
 }
 
+.map-controls {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.map-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  overflow: hidden;
+}
+
+.map-toggle button {
+  padding: 6px 14px;
+  border: none;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.map-toggle button + button {
+  border-left: 1px solid var(--border);
+}
+
+.map-toggle button:hover {
+  color: var(--text);
+}
+
+.map-toggle button.active {
+  background: var(--accent-weak);
+  color: var(--accent);
+}
+
+.heat-legend-bar {
+  width: 72px;
+  height: 8px;
+  border-radius: 4px;
+  display: inline-block;
+  background: linear-gradient(90deg, #f59f00, #e8590c, #e03131);
+}
+
 /* ---------- 세션 목록 ---------- */
 
 .session-list {

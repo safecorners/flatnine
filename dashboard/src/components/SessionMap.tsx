@@ -11,6 +11,7 @@ import {
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
+import HeatLayer, { type HeatPoint } from "./HeatLayer";
 import { SEVERITY_COLORS, type HazardCluster } from "../lib/geo";
 import type { Severity } from "../lib/types";
 
@@ -36,6 +37,10 @@ interface Props {
   focus?: MapFocus | null;
   /** 뷰어(브라우저)의 현재 위치 마커 */
   viewer?: { lat: number; lng: number } | null;
+  /** 위험 지점 표시 방식 — circles: 원 마커(클러스터), heatmap: 밀도 히트맵 */
+  hazardDisplay?: "circles" | "heatmap";
+  /** heatmap 모드에서 쓰는 원본 윈도우 포인트 (클러스터 아님) */
+  heatPoints?: HeatPoint[];
 }
 
 /** 데이터 범위에 맞춰 지도를 이동 (enabled=false면 동작 안 함) */
@@ -121,6 +126,8 @@ export default function SessionMap({
   height = 480,
   focus = null,
   viewer = null,
+  hazardDisplay = "circles",
+  heatPoints = [],
 }: Props) {
   const allPoints = [
     ...track.map((p) => ({ lat: p.lat, lng: p.lng })),
@@ -179,27 +186,30 @@ export default function SessionMap({
         />
       ))}
 
-      {hazards.map((h, i) => (
-        <CircleMarker
-          key={i}
-          center={[h.lat, h.lng]}
-          radius={h.severity === "danger" ? 10 : 7}
-          pathOptions={{
-            color: SEVERITY_COLORS[h.severity],
-            fillColor: SEVERITY_COLORS[h.severity],
-            fillOpacity: 0.7,
-          }}
-        >
-          <Popup>
-            <b>{h.severity === "danger" ? "위험" : "주의"}</b> ·{" "}
-            {h.windowCount}초 구간
-            <br />
-            최대 RMS {h.maxRms.toFixed(2)} m/s²
-            <br />
-            최대 피크 {h.maxPeak.toFixed(2)} m/s²
-          </Popup>
-        </CircleMarker>
-      ))}
+      {hazardDisplay === "circles" &&
+        hazards.map((h, i) => (
+          <CircleMarker
+            key={i}
+            center={[h.lat, h.lng]}
+            radius={h.severity === "danger" ? 10 : 7}
+            pathOptions={{
+              color: SEVERITY_COLORS[h.severity],
+              fillColor: SEVERITY_COLORS[h.severity],
+              fillOpacity: 0.7,
+            }}
+          >
+            <Popup>
+              <b>{h.severity === "danger" ? "위험" : "주의"}</b> ·{" "}
+              {h.windowCount}초 구간
+              <br />
+              최대 RMS {h.maxRms.toFixed(2)} m/s²
+              <br />
+              최대 피크 {h.maxPeak.toFixed(2)} m/s²
+            </Popup>
+          </CircleMarker>
+        ))}
+
+      {hazardDisplay === "heatmap" && <HeatLayer points={heatPoints} />}
     </MapContainer>
   );
 }
