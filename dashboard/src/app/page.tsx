@@ -1,61 +1,28 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import LocationSearch from "../components/LocationSearch";
-import SessionList from "../components/SessionList";
 import SeverityLegend from "../components/SeverityLegend";
-import StatTiles from "../components/StatTiles";
 import type { MapFocus } from "../components/SessionMap";
 import { clusterHazards, type HazardCluster } from "../lib/geo";
 import { supabase, supabaseConfigured } from "../lib/supabase";
-import type { HazardWindow, Session } from "../lib/types";
+import type { HazardWindow } from "../lib/types";
 
 const SessionMap = dynamic(() => import("../components/SessionMap"), {
   ssr: false,
   loading: () => <div className="map-placeholder">지도 로딩 중…</div>,
 });
 
-interface HomeData {
-  sessions: Session[];
-  hazards: HazardWindow[];
-  chunkCounts: Map<string, number>;
-  totalSeconds: number;
-}
-
-async function loadHome(): Promise<HomeData> {
-  const [sessionsRes, hazardsRes, featuresRes] = await Promise.all([
-    supabase
-      .from("sessions")
-      .select("*")
-      .order("started_at", { ascending: false }),
-    supabase.from("hazard_windows").select("*"),
-    supabase.from("window_features").select("session_id"),
-  ]);
-
-  const sessions = (sessionsRes.data ?? []) as Session[];
-  const hazards = (hazardsRes.data ?? []) as HazardWindow[];
-
-  const chunkCounts = new Map<string, number>();
-  for (const row of featuresRes.data ?? []) {
-    const id = (row as { session_id: string }).session_id;
-    chunkCounts.set(id, (chunkCounts.get(id) ?? 0) + 1);
-  }
-
-  const totalSeconds = sessions.reduce(
-    (acc, s) =>
-      acc +
-      Math.max(0, (+new Date(s.ended_at) - +new Date(s.started_at)) / 1000),
-    0
-  );
-
-  return { sessions, hazards, chunkCounts, totalSeconds };
+async function loadHazards(): Promise<HazardWindow[]> {
+  const { data, error } = await supabase.from("hazard_windows").select("*");
+  if (error) throw error;
+  return (data ?? []) as HazardWindow[];
 }
 
 export default function HomePage() {
-  const [data, setData] = useState<HomeData | null>(null);
+  const [hazards, setHazards] = useState<HazardWindow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [focus, setFocus] = useState<MapFocus | null>(null);
   const [viewer, setViewer] = useState<{ lat: number; lng: number } | null>(
@@ -65,7 +32,7 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!supabaseConfigured) return;
-    loadHome().then(setData).catch((e) => setError(String(e)));
+    loadHazards().then(setHazards).catch((e) => setError(String(e)));
   }, []);
 
   // 기본 지도 중심 = 뷰어의 현재 위치 (권한 거부·실패 시 위험 지점 범위로 폴백)
@@ -104,8 +71,7 @@ export default function HomePage() {
     );
   }
 
-  const clusters: HazardCluster[] = data ? clusterHazards(data.hazards) : [];
-  const dangerCount = clusters.filter((c) => c.severity === "danger").length;
+  const clusters: HazardCluster[] = hazards ? clusterHazards(hazards) : [];
 
   return (
     <main className="page">
@@ -120,49 +86,17 @@ export default function HomePage() {
 
       {error && <p className="notice error">데이터 로드 실패: {error}</p>}
 
-      <StatTiles
-        stats={[
-          {
-            label: "측정 세션",
-            value: data ? `${data.sessions.length}` : "…",
-          },
-          {
-            label: "총 측정 시간",
-            value: data ? `${Math.round(data.totalSeconds / 60)}분` : "…",
-          },
-          {
-            label: "위험 지점",
-            value: data ? `${clusters.length}` : "…",
-            sub: data
-              ? `위험 ${dangerCount} · 주의 ${clusters.length - dangerCount}`
-              : undefined,
-          },
-        ]}
-      />
-
       <section className="card">
         <div className="card-header">
           <h2>전체 위험 지도</h2>
           <SeverityLegend />
         </div>
-        <SessionMap hazards={clusters} height={440} focus={focus} viewer={viewer} />
-      </section>
-
-      <section className="card">
-        <div className="card-header">
-          <h2>최근 세션</h2>
-          <Link href="/sessions" className="manage-link">
-            전체 보기 →
-          </Link>
-        </div>
-        {data ? (
-          <SessionList
-            sessions={data.sessions.slice(0, 5)}
-            chunkCounts={data.chunkCounts}
-          />
-        ) : (
-          !error && <p className="notice">로딩 중…</p>
-        )}
+        <SessionMap
+          hazards={clusters}
+          height={520}
+          focus={focus}
+          viewer={viewer}
+        />
       </section>
     </main>
   );
