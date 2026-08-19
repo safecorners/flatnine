@@ -5,17 +5,13 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import LocationSearch from "../components/LocationSearch";
+import SessionList from "../components/SessionList";
 import SeverityLegend from "../components/SeverityLegend";
 import StatTiles from "../components/StatTiles";
 import type { MapFocus } from "../components/SessionMap";
-import {
-  clusterHazards,
-  formatDateTime,
-  formatDuration,
-  type HazardCluster,
-} from "../lib/geo";
+import { clusterHazards, type HazardCluster } from "../lib/geo";
 import { supabase, supabaseConfigured } from "../lib/supabase";
-import { MODE_LABELS, type HazardWindow, type Session } from "../lib/types";
+import type { HazardWindow, Session } from "../lib/types";
 
 const SessionMap = dynamic(() => import("../components/SessionMap"), {
   ssr: false,
@@ -61,7 +57,6 @@ async function loadHome(): Promise<HomeData> {
 export default function HomePage() {
   const [data, setData] = useState<HomeData | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState<string | null>(null);
   const [focus, setFocus] = useState<MapFocus | null>(null);
   const [viewer, setViewer] = useState<{ lat: number; lng: number } | null>(
     null
@@ -93,33 +88,6 @@ export default function HomePage() {
   function handleSearchSelect(lat: number, lng: number, label: string) {
     searchedRef.current = true;
     setFocus({ lat, lng, zoom: 16, label });
-  }
-
-  async function deleteSession(s: Session) {
-    const label = `${formatDateTime(s.started_at)} · ${
-      MODE_LABELS[s.mode] ?? s.mode
-    }`;
-    if (
-      !window.confirm(
-        `${label} 세션과 측정 데이터가 영구 삭제됩니다. 계속할까요?`
-      )
-    ) {
-      return;
-    }
-    setDeleting(s.id);
-    try {
-      const { error: deleteError, count } = await supabase
-        .from("sessions")
-        .delete({ count: "exact" })
-        .eq("id", s.id);
-      if (deleteError) throw deleteError;
-      if (!count) throw new Error("삭제된 행이 없습니다");
-      setData(await loadHome());
-    } catch (e) {
-      window.alert(`삭제 실패: ${e instanceof Error ? e.message : e}`);
-    } finally {
-      setDeleting(null);
-    }
   }
 
   if (!supabaseConfigured) {
@@ -179,50 +147,18 @@ export default function HomePage() {
       </section>
 
       <section className="card">
-        <h2>세션 목록</h2>
-        {data && data.sessions.length === 0 && (
-          <p className="notice">아직 업로드된 세션이 없습니다.</p>
+        <div className="card-header">
+          <h2>세션 목록</h2>
+          <Link href="/sessions" className="manage-link">
+            전체 보기·관리 →
+          </Link>
+        </div>
+        {data && (
+          <SessionList
+            sessions={data.sessions}
+            chunkCounts={data.chunkCounts}
+          />
         )}
-        <ul className="session-list">
-          {data?.sessions.map((s) => {
-            const uploaded = data.chunkCounts.get(s.id) ?? 0;
-            const complete = uploaded >= s.chunk_count;
-            return (
-              <li key={s.id} className="session-item">
-                <Link href={`/session/${s.id}`} className="session-row">
-                  <span className="session-title">
-                    {formatDateTime(s.started_at)} ·{" "}
-                    {MODE_LABELS[s.mode] ?? s.mode}
-                  </span>
-                  <span className="session-meta">
-                    {formatDuration(s.started_at, s.ended_at)}
-                    {s.sample_rate_hz
-                      ? ` · ${Math.round(s.sample_rate_hz)}Hz`
-                      : ""}
-                    {" · "}
-                    {complete ? (
-                      <span className="ok-text">완료</span>
-                    ) : (
-                      <span className="warn-text">
-                        업로드 {uploaded}/{s.chunk_count}
-                      </span>
-                    )}
-                  </span>
-                </Link>
-                <button
-                  type="button"
-                  className="delete-button"
-                  title="세션 삭제"
-                  aria-label="세션 삭제"
-                  disabled={deleting === s.id}
-                  onClick={() => deleteSession(s)}
-                >
-                  {deleting === s.id ? "…" : "🗑"}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
       </section>
     </main>
   );
