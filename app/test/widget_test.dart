@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:roadsense/main.dart';
+import 'package:flatnine/main.dart';
 
 void main() {
   testWidgets('측정 화면이 뜨고 시작 버튼이 보인다', (tester) async {

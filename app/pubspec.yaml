@@ -1,5 +1,5 @@
-name: roadsense
-description: "A new Flutter project."
+name: flatnine
+description: "flatnine — 보행 약자 노면 위험 감지 측정 앱"
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
