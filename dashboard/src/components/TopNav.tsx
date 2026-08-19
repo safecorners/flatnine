@@ -21,7 +21,7 @@ export default function TopNav() {
     <header className="topnav">
       <div className="topnav-inner">
         <Link href="/" className="brand">
-          RoadSense
+          flatnine
         </Link>
         <nav className="topnav-links">
           {LINKS.map((l) => (

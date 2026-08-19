@@ -12,17 +12,17 @@ Future<void> main() async {
     await Supabase.initialize(
         url: supabaseUrl, publishableKey: supabasePublishableKey);
   }
-  runApp(const RoadSenseApp());
+  runApp(const FlatnineApp());
 }
 
-class RoadSenseApp extends StatefulWidget {
-  const RoadSenseApp({super.key});
+class FlatnineApp extends StatefulWidget {
+  const FlatnineApp({super.key});
 
   @override
-  State<RoadSenseApp> createState() => _RoadSenseAppState();
+  State<FlatnineApp> createState() => _FlatnineAppState();
 }
 
-class _RoadSenseAppState extends State<RoadSenseApp> {
+class _FlatnineAppState extends State<FlatnineApp> {
   final _store = SessionStore();
   late final _recorder = RecorderService(_store);
 
@@ -35,7 +35,7 @@ class _RoadSenseAppState extends State<RoadSenseApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'RoadSense',
+      title: 'flatnine',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
         useMaterial3: true,
