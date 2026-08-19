@@ -150,7 +150,7 @@ export default function HomePage() {
         <div className="card-header">
           <h2>세션 목록</h2>
           <Link href="/sessions" className="manage-link">
-            전체 보기·관리 →
+            전체 보기 →
           </Link>
         </div>
         {data && (

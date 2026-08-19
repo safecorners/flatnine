@@ -228,28 +228,6 @@ a {
   background: var(--bg);
 }
 
-.delete-button {
-  flex-shrink: 0;
-  width: 34px;
-  height: 34px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--card);
-  cursor: pointer;
-  font-size: 0.95rem;
-  line-height: 1;
-}
-
-.delete-button:hover:not(:disabled) {
-  border-color: var(--danger);
-  background: color-mix(in srgb, var(--danger) 8%, var(--card));
-}
-
-.delete-button:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
 .session-title {
   font-weight: 600;
 }

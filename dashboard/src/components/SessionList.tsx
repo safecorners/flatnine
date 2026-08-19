@@ -8,17 +8,9 @@ import { MODE_LABELS, type Session } from "../lib/types";
 interface Props {
   sessions: Session[];
   chunkCounts: Map<string, number>;
-  /** 전달되면 각 행에 삭제 버튼이 표시된다 (세션 목록 관리 페이지 전용) */
-  onDelete?: (session: Session) => void;
-  deletingId?: string | null;
 }
 
-export default function SessionList({
-  sessions,
-  chunkCounts,
-  onDelete,
-  deletingId,
-}: Props) {
+export default function SessionList({ sessions, chunkCounts }: Props) {
   if (sessions.length === 0) {
     return <p className="notice">아직 업로드된 세션이 없습니다.</p>;
   }
@@ -50,18 +42,6 @@ export default function SessionList({
                 )}
               </span>
             </Link>
-            {onDelete && (
-              <button
-                type="button"
-                className="delete-button"
-                title="세션 삭제"
-                aria-label="세션 삭제"
-                disabled={deletingId === s.id}
-                onClick={() => onDelete(s)}
-              >
-                {deletingId === s.id ? "…" : "🗑"}
-              </button>
-            )}
           </li>
         );
       })}
