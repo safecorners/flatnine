@@ -131,7 +131,8 @@ export default function SessionMap({
     <MapContainer
       center={DEFAULT_CENTER}
       zoom={15}
-      style={{ height, width: "100%", borderRadius: 12 }}
+      className="map-canvas"
+      style={{ height, width: "100%" }}
       scrollWheelZoom
     >
       <TileLayer

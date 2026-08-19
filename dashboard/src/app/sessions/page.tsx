@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import SessionList from "../../components/SessionList";
@@ -58,7 +57,6 @@ export default function SessionsPage() {
 
   return (
     <main className="page">
-      <Link href="/">← 전체 현황</Link>
       <header className="page-header">
         <h1>세션 목록</h1>
         <p className="tagline">업로드된 측정 세션 현황</p>
@@ -68,14 +66,17 @@ export default function SessionsPage() {
 
       <StatTiles
         stats={[
-          { label: "측정 세션", value: `${data?.sessions.length ?? "—"}` },
+          {
+            label: "측정 세션",
+            value: data ? `${data.sessions.length}` : "…",
+          },
           {
             label: "총 측정 시간",
-            value: data ? `${Math.round(data.totalSeconds / 60)}분` : "—",
+            value: data ? `${Math.round(data.totalSeconds / 60)}분` : "…",
           },
           {
             label: "위험 지점",
-            value: `${clusters.length || "—"}`,
+            value: data ? `${clusters.length}` : "…",
             sub: data
               ? `위험 ${dangerCount} · 주의 ${clusters.length - dangerCount}`
               : undefined,

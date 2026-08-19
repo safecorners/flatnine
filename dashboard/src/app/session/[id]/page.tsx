@@ -1,7 +1,6 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import Link from "next/link";
 import { use, useEffect, useState } from "react";
 
 import RmsTimeline from "../../../components/RmsTimeline";
@@ -83,7 +82,6 @@ export default function SessionDetailPage({
   if (error) {
     return (
       <main className="page">
-        <Link href="/">← 전체 현황</Link>
         <p className="notice error">세션을 불러오지 못했습니다: {error}</p>
       </main>
     );
@@ -115,7 +113,6 @@ export default function SessionDetailPage({
 
   return (
     <main className="page">
-      <Link href="/">← 전체 현황</Link>
       <header className="page-header">
         <h1>
           {formatDateTime(session.started_at)} ·{" "}

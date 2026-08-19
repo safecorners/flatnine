@@ -93,7 +93,9 @@ export default function HomePage() {
   if (!supabaseConfigured) {
     return (
       <main className="page">
-        <h1>RoadSense 대시보드</h1>
+        <header className="page-header">
+          <h1>보행 약자 노면 위험 지도</h1>
+        </header>
         <p className="notice">
           Supabase 환경변수(NEXT_PUBLIC_SUPABASE_URL /
           NEXT_PUBLIC_SUPABASE_ANON_KEY)가 설정되지 않았습니다.
@@ -108,9 +110,9 @@ export default function HomePage() {
   return (
     <main className="page">
       <header className="page-header">
-        <h1>RoadSense</h1>
+        <h1>보행 약자 노면 위험 지도</h1>
         <p className="tagline">
-          스마트폰 IMU로 감지한 보행 약자 노면 위험 지도
+          스마트폰 가속도·자이로 센서로 수집한 노면 상태를 지도에서 확인합니다
         </p>
       </header>
 
@@ -120,15 +122,20 @@ export default function HomePage() {
 
       <StatTiles
         stats={[
-          { label: "측정 세션", value: `${data?.sessions.length ?? "—"}` },
+          {
+            label: "측정 세션",
+            value: data ? `${data.sessions.length}` : "…",
+          },
           {
             label: "총 측정 시간",
-            value: data ? `${Math.round(data.totalSeconds / 60)}분` : "—",
+            value: data ? `${Math.round(data.totalSeconds / 60)}분` : "…",
           },
           {
             label: "위험 지점",
-            value: `${clusters.length || "—"}`,
-            sub: data ? `위험 ${dangerCount} · 주의 ${clusters.length - dangerCount}` : undefined,
+            value: data ? `${clusters.length}` : "…",
+            sub: data
+              ? `위험 ${dangerCount} · 주의 ${clusters.length - dangerCount}`
+              : undefined,
           },
         ]}
       />
@@ -138,26 +145,23 @@ export default function HomePage() {
           <h2>전체 위험 지도</h2>
           <SeverityLegend />
         </div>
-        <SessionMap
-          hazards={clusters}
-          height={440}
-          focus={focus}
-          viewer={viewer}
-        />
+        <SessionMap hazards={clusters} height={440} focus={focus} viewer={viewer} />
       </section>
 
       <section className="card">
         <div className="card-header">
-          <h2>세션 목록</h2>
+          <h2>최근 세션</h2>
           <Link href="/sessions" className="manage-link">
             전체 보기 →
           </Link>
         </div>
-        {data && (
+        {data ? (
           <SessionList
-            sessions={data.sessions}
+            sessions={data.sessions.slice(0, 5)}
             chunkCounts={data.chunkCounts}
           />
+        ) : (
+          !error && <p className="notice">로딩 중…</p>
         )}
       </section>
     </main>
