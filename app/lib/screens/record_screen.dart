@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../services/recorder.dart';
+import '../widgets/track_map.dart';
+import 'recording_screen.dart';
 import 'session_list_screen.dart';
 
 const modeLabels = {
@@ -9,6 +12,7 @@ const modeLabels = {
   'walk': '보행',
 };
 
+/// 측정 시작 페이지: 지도(지난 궤적) + 이동 수단 선택 + 측정 시작.
 class RecordScreen extends StatefulWidget {
   const RecordScreen({super.key, required this.recorder});
 
@@ -20,6 +24,16 @@ class RecordScreen extends StatefulWidget {
 
 class _RecordScreenState extends State<RecordScreen> {
   String _mode = 'wheelchair';
+
+  Future<void> _startRecording() async {
+    final recorder = widget.recorder;
+    await recorder.start(_mode);
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+          builder: (_) => RecordingScreen(recorder: recorder)),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,12 +54,28 @@ class _RecordScreenState extends State<RecordScreen> {
       body: ListenableBuilder(
         listenable: recorder,
         builder: (context, _) {
-          final recording = recorder.state == RecorderState.recording;
+          final fix = recorder.lastFix;
           return Padding(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: TrackMapView(
+                      points: [
+                        for (final p in recorder.track)
+                          LatLng(p.latitude, p.longitude)
+                      ],
+                      current: fix == null
+                          ? null
+                          : LatLng(fix.latitude, fix.longitude),
+                      overlayHint: '측정을 시작하면\n이동 경로가 표시됩니다',
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
                 SegmentedButton<String>(
                   segments: [
                     for (final entry in modeLabels.entries)
@@ -53,106 +83,22 @@ class _RecordScreenState extends State<RecordScreen> {
                           value: entry.key, label: Text(entry.value)),
                   ],
                   selected: {_mode},
-                  onSelectionChanged: recording
-                      ? null
-                      : (s) => setState(() => _mode = s.first),
+                  onSelectionChanged: (s) =>
+                      setState(() => _mode = s.first),
                 ),
-                const SizedBox(height: 32),
-                Expanded(
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          recorder.currentMagnitude.toStringAsFixed(2),
-                          style: Theme.of(context)
-                              .textTheme
-                              .displayLarge
-                              ?.copyWith(fontWeight: FontWeight.bold),
-                        ),
-                        const Text('|a| m/s² (선형가속도 크기)'),
-                        const SizedBox(height: 24),
-                        _StatsGrid(recorder: recorder),
-                      ],
-                    ),
-                  ),
-                ),
+                const SizedBox(height: 16),
                 FilledButton(
                   style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(72),
-                    backgroundColor: recording
-                        ? Theme.of(context).colorScheme.error
-                        : null,
+                    minimumSize: const Size.fromHeight(64),
                   ),
-                  onPressed: () async {
-                    if (recording) {
-                      final session = await recorder.stop();
-                      if (context.mounted && session != null) {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content: Text(
-                              '측정 종료 — 청크 ${session.chunkCount}개 저장됨. '
-                              '세션 목록에서 업로드하세요.'),
-                        ));
-                      }
-                    } else {
-                      await recorder.start(_mode);
-                    }
-                  },
-                  child: Text(
-                    recording ? '측정 종료' : '측정 시작',
-                    style: const TextStyle(fontSize: 22),
-                  ),
+                  onPressed: _startRecording,
+                  child: const Text('측정 시작', style: TextStyle(fontSize: 22)),
                 ),
               ],
             ),
           );
         },
       ),
-    );
-  }
-}
-
-class _StatsGrid extends StatelessWidget {
-  const _StatsGrid({required this.recorder});
-
-  final RecorderService recorder;
-
-  @override
-  Widget build(BuildContext context) {
-    final fix = recorder.lastFix;
-    final recording = recorder.state == RecorderState.recording;
-    final gpsText = recorder.gpsError ??
-        (fix == null
-            ? (recording ? '대기 중…' : '—')
-            : '±${fix.accuracy.toStringAsFixed(0)}m');
-    final e = recorder.elapsed;
-    final elapsedText = recording
-        ? '${e.inMinutes}:${(e.inSeconds % 60).toString().padLeft(2, '0')}'
-        : '—';
-
-    Widget stat(String label, String value) => Column(
-          children: [
-            Text(value,
-                style: Theme.of(context)
-                    .textTheme
-                    .titleLarge
-                    ?.copyWith(fontWeight: FontWeight.w600)),
-            Text(label, style: Theme.of(context).textTheme.bodySmall),
-          ],
-        );
-
-    return Wrap(
-      spacing: 32,
-      runSpacing: 16,
-      alignment: WrapAlignment.center,
-      children: [
-        stat('경과 시간', elapsedText),
-        stat('샘플 수', '${recorder.totalSamples}'),
-        stat('실효 Hz',
-            recording ? recorder.effectiveHz.toStringAsFixed(1) : '—'),
-        stat('청크', '${recorder.chunkCount}'),
-        stat('GPS', gpsText),
-      ],
     );
   }
 }

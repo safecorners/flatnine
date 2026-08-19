@@ -58,4 +58,10 @@ class UploadService {
       rethrow;
     }
   }
+
+  /// 서버에서 세션 삭제. sensor_chunks·window_features는 FK cascade로 함께
+  /// 지워진다 (RLS: sessions_anon_delete). 서버에 없는 id면 no-op이라 멱등.
+  Future<void> deleteRemote(RecordedSession session) async {
+    await _client.from('sessions').delete().eq('id', session.remoteId);
+  }
 }

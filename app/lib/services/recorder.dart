@@ -34,6 +34,19 @@ class RecorderService extends ChangeNotifier {
   int chunkCount = 0;
   Position? lastFix;
   String? gpsError;
+
+  /// 측정 중 이동 궤적 (2m 이상 이동한 fix만 — 정지 시 지터 제외).
+  /// stop() 후에도 유지되고 다음 start()에서 초기화된다.
+  final List<Position> track = [];
+  double distanceM = 0;
+
+  /// 그래프용 |a| 이력 — 200ms 버킷의 peak 값, 최근 60초(300개).
+  /// peak 유지 다운샘플링이라 요철 스파이크가 뭉개지지 않는다.
+  final List<double> magnitudeHistory = [];
+  static const magnitudeHistoryMax = 300;
+  static const _bucketDuration = Duration(milliseconds: 200);
+  DateTime? _bucketStart;
+  double _bucketPeak = 0;
   Duration get elapsed => current == null
       ? Duration.zero
       : DateTime.now().difference(current!.startedAt);
@@ -71,6 +84,11 @@ class RecorderService extends ChangeNotifier {
     currentMagnitude = 0;
     lastFix = null;
     gpsError = null;
+    track.clear();
+    distanceM = 0;
+    magnitudeHistory.clear();
+    _bucketStart = null;
+    _bucketPeak = 0;
     _buffer = [];
     _chunkEventStart = null;
     _chunkWallStart = null;
@@ -114,6 +132,17 @@ class RecorderService extends ChangeNotifier {
     currentMagnitude = sqrt(e.x * e.x + e.y * e.y + e.z * e.z);
     final secs = elapsed.inMilliseconds / 1000.0;
     if (secs > 0) effectiveHz = totalSamples / secs;
+
+    _bucketPeak = max(_bucketPeak, currentMagnitude);
+    _bucketStart ??= ts;
+    if (ts.difference(_bucketStart!) >= _bucketDuration) {
+      magnitudeHistory.add(_bucketPeak);
+      if (magnitudeHistory.length > magnitudeHistoryMax) {
+        magnitudeHistory.removeAt(0);
+      }
+      _bucketStart = ts;
+      _bucketPeak = 0;
+    }
   }
 
   void _finalizeChunk() {
@@ -188,11 +217,28 @@ class RecorderService extends ChangeNotifier {
         (pos) {
           lastFix = pos;
           gpsError = null;
+          _appendTrackPoint(pos);
         },
         onError: (Object e) => gpsError = 'GPS 오류',
       );
     } catch (_) {
       gpsError = 'GPS 초기화 실패';
+    }
+  }
+
+  static const _minTrackStepM = 2.0;
+
+  void _appendTrackPoint(Position pos) {
+    if (track.isEmpty) {
+      track.add(pos);
+      return;
+    }
+    final last = track.last;
+    final d = Geolocator.distanceBetween(
+        last.latitude, last.longitude, pos.latitude, pos.longitude);
+    if (d >= _minTrackStepM) {
+      track.add(pos);
+      distanceM += d;
     }
   }
 

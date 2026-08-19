@@ -38,6 +38,8 @@ dependencies:
   geolocator: ^14.0.2
   supabase_flutter: ^2.15.4
   wakelock_plus: ^1.4.0
+  flutter_map: ^8.1.1
+  latlong2: ^0.9.1
   path_provider: ^2.1.5
   # 12.x는 Xcode 26 SDK 필요 (이 맥은 Xcode 16.4)
   device_info_plus: ^11.5.0

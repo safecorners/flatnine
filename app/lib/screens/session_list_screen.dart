@@ -5,6 +5,7 @@ import '../models/recorded_session.dart';
 import '../services/session_store.dart';
 import '../services/uploader.dart';
 import 'record_screen.dart' show modeLabels;
+import 'session_detail_screen.dart';
 
 class SessionListScreen extends StatefulWidget {
   const SessionListScreen({super.key});
@@ -122,26 +123,13 @@ class _SessionListScreenState extends State<SessionListScreen> {
                     onPressed: supabaseConfigured ? () => _upload(s) : null,
                     child: Text(s.uploadState == 'failed' ? '재시도' : '업로드'),
                   ),
-        onLongPress: () async {
-          final confirmed = await showDialog<bool>(
-            context: context,
-            builder: (ctx) => AlertDialog(
-              title: const Text('세션 삭제'),
-              content: Text('$dateText 세션을 삭제할까요? (기기에서만 삭제됩니다)'),
-              actions: [
-                TextButton(
-                    onPressed: () => Navigator.pop(ctx, false),
-                    child: const Text('취소')),
-                TextButton(
-                    onPressed: () => Navigator.pop(ctx, true),
-                    child: const Text('삭제')),
-              ],
-            ),
+        onTap: () async {
+          await Navigator.of(context).push(
+            MaterialPageRoute(
+                builder: (_) => SessionDetailScreen(session: s)),
           );
-          if (confirmed == true) {
-            await _store.delete(s.localId);
-            await _refresh();
-          }
+          // 상세에서 삭제/업로드 후 돌아오면 목록 갱신
+          await _refresh();
         },
       ),
     );
