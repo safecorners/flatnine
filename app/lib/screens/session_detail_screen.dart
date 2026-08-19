@@ -4,8 +4,10 @@ import 'package:latlong2/latlong.dart';
 
 import '../config.dart';
 import '../models/recorded_session.dart';
+import '../models/sensor_chunk.dart';
 import '../services/session_store.dart';
 import '../services/uploader.dart';
+import '../widgets/magnitude_chart.dart';
 import '../widgets/track_map.dart';
 import '../widgets/upload_area.dart';
 import 'record_screen.dart' show modeLabels;
@@ -28,6 +30,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
 
   List<LatLng>? _points; // null = 로딩 중
   double _distanceM = 0;
+  List<double>? _peaks; // 청크별 peak |a|
 
   @override
   void initState() {
@@ -55,6 +58,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
       setState(() {
         _points = pts;
         _distanceM = dist;
+        _peaks = chunkPeakSeries(chunks);
       });
     }
   }
@@ -189,6 +193,8 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                 ),
               ),
             ),
+            const SizedBox(height: 12),
+            PeakChartSection(peaks: _peaks),
             const SizedBox(height: 12),
             UploadArea(
               session: s,

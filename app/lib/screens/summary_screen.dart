@@ -3,8 +3,10 @@ import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../models/recorded_session.dart';
+import '../models/sensor_chunk.dart';
 import '../services/session_store.dart';
 import '../services/uploader.dart';
+import '../widgets/magnitude_chart.dart';
 import '../widgets/track_map.dart';
 import '../widgets/upload_area.dart';
 import 'record_screen.dart' show modeLabels;
@@ -30,6 +32,18 @@ class _SummaryScreenState extends State<SummaryScreen> {
   final _store = SessionStore();
   late final _uploader = UploadService(_store);
   bool _uploading = false;
+
+  List<double>? _peaks; // 청크별 peak |a| (null = 로딩 중)
+
+  @override
+  void initState() {
+    super.initState();
+    _store
+        .readChunks(widget.session.localId)
+        .then((chunks) => mounted
+            ? setState(() => _peaks = chunkPeakSeries(chunks))
+            : null);
+  }
 
   Future<void> _upload() async {
     setState(() => _uploading = true);
@@ -106,6 +120,8 @@ class _SummaryScreenState extends State<SummaryScreen> {
                 ),
               ),
             ),
+            const SizedBox(height: 12),
+            PeakChartSection(peaks: _peaks),
             const SizedBox(height: 12),
             UploadArea(session: s, uploading: _uploading, onUpload: _upload),
             const SizedBox(height: 12),
