@@ -1,4 +1,7 @@
+import 'dart:convert';
 import 'dart:math';
+
+import 'package:crypto/crypto.dart';
 
 /// 측정 세션 메타데이터. 로컬 `sessions/<localId>/meta.json`에 저장되고
 /// 업로드 시 서버 `sessions` 1행이 된다.
@@ -8,6 +11,11 @@ class RecordedSession {
   /// 업로드 멱등성을 위해 측정 시작 시 클라이언트에서 생성하는 UUID.
   /// 재시도해도 같은 id로 upsert되어 중복 세션이 생기지 않는다.
   final String remoteId;
+
+  /// 서버 삭제 권한 증명용 토큰. 기기 밖으로 나가지 않고, 서버에는 SHA-256
+  /// 해시만 올라간다 (anon 키만 가진 제3자가 남의 세션을 못 지우게 하는 장치).
+  /// 이 필드가 생기기 전에 만들어진 세션은 null.
+  final String? ownerToken;
 
   final String mode; // walk | wheelchair | stroller
   final DateTime startedAt;
@@ -22,6 +30,7 @@ class RecordedSession {
   RecordedSession({
     required this.localId,
     required this.remoteId,
+    this.ownerToken,
     required this.mode,
     required this.startedAt,
     this.endedAt,
@@ -39,6 +48,7 @@ class RecordedSession {
   Map<String, dynamic> toJson() => {
         'local_id': localId,
         'remote_id': remoteId,
+        'owner_token': ownerToken,
         'mode': mode,
         'started_at': startedAt.toUtc().toIso8601String(),
         'ended_at': endedAt?.toUtc().toIso8601String(),
@@ -54,6 +64,7 @@ class RecordedSession {
       RecordedSession(
         localId: json['local_id'] as String,
         remoteId: json['remote_id'] as String,
+        ownerToken: json['owner_token'] as String?,
         mode: json['mode'] as String,
         startedAt: DateTime.parse(json['started_at'] as String),
         endedAt: json['ended_at'] == null
@@ -67,9 +78,12 @@ class RecordedSession {
         uploadedChunks: json['uploaded_chunks'] as int? ?? 0,
       );
 
-  /// Supabase `sessions` insert 행
+  /// Supabase `sessions` insert 행.
+  /// 토큰 자체가 아니라 해시만 올린다 — 서버가 읽혀도 삭제 권한이 새지 않는다.
   Map<String, dynamic> toRow() => {
         'id': remoteId,
+        'owner_token_hash':
+            ownerToken == null ? null : sha256OwnerToken(ownerToken!),
         'started_at': startedAt.toUtc().toIso8601String(),
         'ended_at': (endedAt ?? DateTime.now()).toUtc().toIso8601String(),
         'mode': mode,
@@ -79,6 +93,11 @@ class RecordedSession {
         'chunk_count': chunkCount,
       };
 }
+
+/// 소유자 토큰 해시 — 서버 `sessions.owner_token_hash`와 같은 정의
+/// (006 마이그레이션의 `encode(sha256(convert_to(token,'UTF8')),'hex')`).
+String sha256OwnerToken(String token) =>
+    sha256.convert(utf8.encode(token)).toString();
 
 /// 외부 패키지 없이 쓰는 UUID v4 생성기.
 String uuidV4() {

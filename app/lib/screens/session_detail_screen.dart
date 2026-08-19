@@ -85,16 +85,21 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
 
   Future<void> _delete() async {
     final s = widget.session;
-    // 업로드 이력이 있으면 서버 데이터도 함께 삭제
-    final removeRemote = supabaseConfigured &&
+    final uploaded = supabaseConfigured &&
         (s.uploadState == 'uploaded' || s.uploadedChunks > 0);
+    // 서버 삭제는 소유자 토큰이 있어야 가능하다. 토큰 도입 전에 업로드된
+    // 세션은 앱에서 지울 수 없으므로 기기에서만 삭제하고 그 사실을 알린다.
+    final removeRemote = uploaded && s.ownerToken != null;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('세션 삭제'),
         content: Text(removeRemote
             ? '이 세션을 삭제할까요?\n기기와 서버(Supabase)에서 모두 삭제됩니다.'
-            : '이 세션을 삭제할까요?\n(기기에서만 삭제됩니다)'),
+            : uploaded
+                ? '이 세션을 삭제할까요?\n기기에서만 삭제되고, 이미 업로드된 서버 '
+                    '데이터는 남습니다 (구버전 세션).'
+                : '이 세션을 삭제할까요?\n(기기에서만 삭제됩니다)'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
@@ -112,7 +117,12 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
 
     if (removeRemote) {
       try {
-        await _uploader.deleteRemote(s);
+        final ok = await _uploader.deleteRemote(s);
+        if (!ok && mounted) {
+          // 서버에 행이 없거나 토큰 불일치 — 기기 데이터까지 붙잡아 둘 이유는 없다
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('서버에 해당 세션이 없어 기기에서만 삭제합니다')));
+        }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(

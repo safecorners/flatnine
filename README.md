@@ -26,7 +26,7 @@ userAccelerometer ~100Hz    →    sensor_chunks (1초 JSONB 행)   →   지도
 
 | 디렉토리 | 내용 |
 |---|---|
-| `app/` | Flutter 측정 앱 (Android). 측정 화면 + 세션 목록/업로드 화면 |
+| `app/` | Flutter 측정 앱 (iOS/Android). 측정 시작→측정 중→요약 3화면 + 세션 목록/상세 |
 | `dashboard/` | Next.js 대시보드. 전체 위험 지도(`/`) + 세션 상세(`/session/[id]`) |
 | `supabase/migrations/` | 스키마·트리거·RLS SQL (Supabase에 적용된 사본) |
 
@@ -52,6 +52,25 @@ npm run dev
 ```
 
 - `.env.local`에 `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` 설정.
+
+## 보안 경계
+
+`app/lib/config.dart`와 대시보드 `.env.local`에 들어가는 **publishable(anon) 키는
+비밀이 아니다.** 설계상 클라이언트에 배포되는 값이고, 앱 바이너리와 브라우저 번들에서
+누구나 읽을 수 있다. 실제 접근 통제는 전부 Postgres RLS가 담당한다.
+
+| 대상 | anon 권한 | 근거 |
+|---|---|---|
+| `sessions`, `sensor_chunks` | INSERT | 앱 업로드 (인증 없는 MVP) |
+| `sessions`, `sensor_chunks`, `window_features`, `detection_config` | SELECT | 공개 위험 지도 |
+| `sessions` DELETE | **불가** | 소유자 토큰을 아는 호출자만 `delete_session()` RPC로 삭제 |
+
+세션 삭제는 앱이 세션마다 만드는 토큰으로만 가능하다. 토큰은 기기에만 남고 서버에는
+SHA-256 해시만 저장되므로([006](supabase/migrations/006_delete_by_owner_token.sql)),
+키를 가진 제3자가 남의 측정 데이터를 지울 수 없다.
+
+**알려진 한계 (MVP):** 익명 INSERT가 열려 있어 위조 데이터 주입을 막지 못한다.
+사용자 인증과 업로드 서명은 확장 단계 과제다.
 
 ## 측정 팁
 

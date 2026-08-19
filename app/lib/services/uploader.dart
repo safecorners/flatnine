@@ -59,9 +59,19 @@ class UploadService {
     }
   }
 
-  /// 서버에서 세션 삭제. sensor_chunks·window_features는 FK cascade로 함께
-  /// 지워진다 (RLS: sessions_anon_delete). 서버에 없는 id면 no-op이라 멱등.
-  Future<void> deleteRemote(RecordedSession session) async {
-    await _client.from('sessions').delete().eq('id', session.remoteId);
+  /// 서버에서 세션 삭제. 소유자 토큰을 아는 호출자만 지울 수 있는 RPC를 쓴다
+  /// (anon 무제한 DELETE 정책은 006에서 제거됨). sensor_chunks·window_features는
+  /// FK cascade로 함께 지워진다.
+  ///
+  /// 반환값: 서버에서 실제로 삭제됐으면 true. 토큰이 없거나(구버전 세션)
+  /// 서버에 행이 없으면 false — 호출 자체는 멱등이다.
+  Future<bool> deleteRemote(RecordedSession session) async {
+    final token = session.ownerToken;
+    if (token == null) return false;
+    final result = await _client.rpc('delete_session', params: {
+      'p_id': session.remoteId,
+      'p_token': token,
+    });
+    return result == true;
   }
 }

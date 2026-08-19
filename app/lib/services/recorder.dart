@@ -71,6 +71,8 @@ class RecorderService extends ChangeNotifier {
     current = RecordedSession(
       localId: now.millisecondsSinceEpoch.toString(),
       remoteId: uuidV4(),
+      ownerToken: uuidV4(), // 서버 삭제 권한 증명용 — 기기에만 보관
+
       mode: mode,
       startedAt: now,
       deviceModel: deviceModel,

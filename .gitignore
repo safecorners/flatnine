@@ -10,4 +10,7 @@ dashboard/.next/
 dashboard/.vercel/
 dashboard/.env*.local
 
+# DB 백업 — 실제 GPS 궤적이 들어 있으므로 절대 커밋하지 않는다
+backup/
+
 # Flutter (app/ 내부는 app/.gitignore가 처리)
