@@ -74,7 +74,7 @@ class _TrackMapViewState extends State<TrackMapView> {
           children: [
             TileLayer(
               urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              userAgentPackageName: 'com.jjgirls.flatnine',
+              userAgentPackageName: 'com.safecorners.flatnine',
             ),
             if (points.length >= 2)
               PolylineLayer(polylines: [
